@@ -85,12 +85,22 @@ exodus \
 ```python
 #!/usr/bin/env python3
 from exodus.kv_migrator import list_secrets, read_secret, write_secret
+from tqdm import tqdm
+import time
+import logging
+
+logging.basicConfig(
+   level=logging.INFO,
+   format="%(asctime)s [%(levelname)s] %(message)s"
+)
 
 def simple_migrate(
-   src_addr, src_token, src_mount, src_root, src_kv_version, src_namespace="",
-   dst_addr, dst_token, dst_mount, dst_root, dst_kv_version, dst_namespace="",
-   dry_run=False
+   src_addr, src_token, src_mount, src_root, src_kv_version, src_namespace,
+   dst_addr, dst_token, dst_mount, dst_root, dst_kv_version, dst_namespace,
+   dry_run=False, rate_limit=1.0
 ):
+   logging.info(f"Listing secrets in '{src_root}' from {src_addr} (KV v{src_kv_version})")
+   
    secret_paths = list_secrets(
        vault_addr=src_addr,
        token=src_token,
@@ -100,39 +110,57 @@ def simple_migrate(
        namespace=src_namespace,
        verify=False
    )
-   for spath in secret_paths:
-       data = read_secret(
-           vault_addr=src_addr,
-           token=src_token,
-           mount=src_mount,
-           path=spath,
-           kv_version=src_kv_version,
-           namespace=src_namespace,
-           verify=False
-       )
-       if not data:
-           continue
-           
-       if spath.startswith(src_root + "/"):
-           relative = spath[len(src_root)+1:]
-           dpath = f"{dst_root}/{relative}"
-       else:
-           dpath = f"{dst_root}/{spath}"
-           
-       if dry_run:
-           print(f"[Dry Run] {spath} -> {dpath}")
-       else:
-           write_secret(
-               vault_addr=dst_addr,
-               token=dst_token,
-               mount=dst_mount,
-               path=dpath,
-               secret_data=data,
-               kv_version=dst_kv_version,
-               namespace=dst_namespace,
+
+   logging.info(f"Found {len(secret_paths)} secrets to copy")
+   failed_copies = []
+   
+   for spath in tqdm(secret_paths, desc="Copying secrets"):
+       try:
+           data = read_secret(
+               vault_addr=src_addr,
+               token=src_token,
+               mount=src_mount,
+               path=spath,
+               kv_version=src_kv_version,
+               namespace=src_namespace,
                verify=False
            )
-           print(f"Copied {spath} -> {dpath}")
+           if not data:
+               logging.debug(f"No data for '{spath}'; skipping")
+               continue
+               
+           if spath.startswith(src_root + "/"):
+               relative = spath[len(src_root)+1:]
+               dpath = f"{dst_root}/{relative}"
+           else:
+               dpath = f"{dst_root}/{spath}"
+               
+           if dry_run:
+               logging.info(f"[Dry Run] Would copy '{spath}' -> '{dpath}'")
+           else:
+               write_secret(
+                   vault_addr=dst_addr,
+                   token=dst_token,
+                   mount=dst_mount,
+                   path=dpath,
+                   secret_data=data,
+                   kv_version=dst_kv_version,
+                   namespace=dst_namespace,
+                   verify=False
+               )
+               logging.info(f"Copied '{spath}' -> '{dpath}'")
+           
+           if rate_limit > 0:
+               time.sleep(rate_limit)
+               
+       except Exception as e:
+           failed_copies.append((spath, str(e)))
+           logging.error(f"Failed to copy '{spath}': {e}")
+
+   if failed_copies:
+       logging.error("\nSome secrets failed to copy:")
+       for path, error in failed_copies:
+           logging.error(f" - {path}: {error}")
 
 def main():
    # Example usage
