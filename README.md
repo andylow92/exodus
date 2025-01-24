@@ -137,3 +137,5 @@ Contributions welcome! Please feel free to submit pull requests or issues on Git
 ## License
 
 MIT License. See [LICENSE](LICENSE) file for details.
+
+Again, note: This is not an official HashiCorp tool. It is a community-driven script created to help anyone needing to migrate secrets between Vault instances. Always confirm it meets your security and compliance requirements before use. Use it at your own risk.
