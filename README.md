@@ -9,9 +9,9 @@
 ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚══════╝
 ```
 
-Exodus is an open-source Python project designed to help developers smoothly migrate secrets between HashiCorp Vault clusters. In particular, it focuses on copying secrets from a KV (Key-Value) v2 mount in one Vault instance to another Vault instance.
+Exodus is an open-source Python project designed to help developers smoothly migrate secrets between HashiCorp Vault clusters. In particular, it focuses on copying secrets from a KV (Key-Value) v1 or v2 mount in one Vault instance to another Vault instance.
 
-    Disclaimer: This is not an official HashiCorp-supported tool or code. It was created by me for the community to assist anyone who needs to migrate Vault secrets. Use at your own discretion.
+    Disclaimer: This is not an official HashiCorp-supported tool or code. It was created by me for the community to assist anyone who needs to migrate Vault secrets. Use at your own RISK.
 
 Features
 
