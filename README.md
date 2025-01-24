@@ -83,44 +83,77 @@ exodus \
 ### Python Library Usage
 
 ```python
+#!/usr/bin/env python3
 from exodus.kv_migrator import list_secrets, read_secret, write_secret
 
+def simple_migrate(
+   src_addr, src_token, src_mount, src_root, src_kv_version, src_namespace="",
+   dst_addr, dst_token, dst_mount, dst_root, dst_kv_version, dst_namespace="",
+   dry_run=False
+):
+   secret_paths = list_secrets(
+       vault_addr=src_addr,
+       token=src_token,
+       mount=src_mount,
+       path=src_root,
+       kv_version=src_kv_version,
+       namespace=src_namespace,
+       verify=False
+   )
+   for spath in secret_paths:
+       data = read_secret(
+           vault_addr=src_addr,
+           token=src_token,
+           mount=src_mount,
+           path=spath,
+           kv_version=src_kv_version,
+           namespace=src_namespace,
+           verify=False
+       )
+       if not data:
+           continue
+           
+       if spath.startswith(src_root + "/"):
+           relative = spath[len(src_root)+1:]
+           dpath = f"{dst_root}/{relative}"
+       else:
+           dpath = f"{dst_root}/{spath}"
+           
+       if dry_run:
+           print(f"[Dry Run] {spath} -> {dpath}")
+       else:
+           write_secret(
+               vault_addr=dst_addr,
+               token=dst_token,
+               mount=dst_mount,
+               path=dpath,
+               secret_data=data,
+               kv_version=dst_kv_version,
+               namespace=dst_namespace,
+               verify=False
+           )
+           print(f"Copied {spath} -> {dpath}")
+
 def main():
-    vault_addr = "http://localhost:8200"
-    token = "my-vault-token"
-    mount = "secret"
-    path = "myapp"
-
-    # List secrets
-    secret_paths = list_secrets(
-        vault_addr=vault_addr,
-        token=token,
-        mount=mount,
-        path=path,
-        kv_version="2"
-    )
-
-    # Read and write secrets
-    if secret_paths:
-        secret = read_secret(
-            vault_addr=vault_addr,
-            token=token,
-            mount=mount,
-            path=secret_paths[0],
-            kv_version="2"
-        )
-        
-        write_secret(
-            vault_addr="http://another-vault:8200",
-            token="another-token",
-            mount="secret",
-            path="myapp-copied/secret1",
-            secret_data=secret,
-            kv_version="2"
-        )
+   # Example usage
+   simple_migrate(
+       src_addr="http://localhost:8200",
+       src_token="root",
+       src_mount="secret", 
+       src_root="myapp",
+       src_kv_version="2",
+       src_namespace="admin",
+       dst_addr="http://localhost:8200",
+       dst_token="root",
+       dst_mount="secret",
+       dst_root="myapp-copied",
+       dst_kv_version="2",
+       dst_namespace="admin",
+       dry_run=True
+   )
 
 if __name__ == "__main__":
-    main()
+   main()
 ```
 
 ## Best Practices
