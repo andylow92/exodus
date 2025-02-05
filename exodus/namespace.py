@@ -4,34 +4,32 @@ import logging
 from typing import List, Optional
 import requests
 
-def make_headers(token: str, namespace: Optional[str] = None) -> dict:
-    """Consistent with your existing make_headers in kv_migrator"""
-    headers = {"X-Vault-Token": token}
-    if namespace:
-        headers["X-Vault-Namespace"] = namespace
-    return headers
-
 def list_namespaces(
     vault_addr: str,
     token: str,
     base_namespace: str = "",
     verify: bool = True,
-    session: Optional[requests.Session] = None
+    session: Optional[requests.Session] = None,
+    suppress_404: bool = True
 ) -> List[str]:
     """
     Recursively list all child namespaces under the specified base_namespace.
-
+    
     Args:
-        vault_addr: Vault server address (e.g., "https://127.0.0.1:8200")
-        token: Vault token with list/read permissions on sys/namespaces
-        base_namespace: The namespace scope to list under (empty for root)
-        verify: Whether to verify SSL certificates
-        session: Optional requests.Session for connection reuse
+        vault_addr: Vault server address
+        token: Vault token
+        base_namespace: Starting namespace
+        verify: SSL verification
+        session: Optional requests session
+        suppress_404: If True, suppresses warnings for 404 errors (empty namespaces)
     """
     if session is None:
         session = requests.Session()
 
-    headers = make_headers(token, base_namespace)
+    headers = {"X-Vault-Token": token}
+    if base_namespace:
+        headers["X-Vault-Namespace"] = base_namespace
+
     url = f"{vault_addr}/v1/sys/namespaces"
 
     try:
@@ -51,6 +49,10 @@ def list_namespaces(
         except ValueError as e:
             logging.error(f"Invalid JSON response: {str(e)}")
             return []
+    elif resp.status_code == 404:
+        if not suppress_404:
+            logging.debug(f"No child namespaces found under '{base_namespace}'")
+        return []
     else:
         logging.warning(
             f"Error listing namespaces under '{base_namespace}': "
@@ -67,13 +69,13 @@ def list_namespaces(
         )
         all_namespaces.append(new_namespace)
 
-        # Recursively gather child namespaces
         child_namespaces = list_namespaces(
             vault_addr=vault_addr,
             token=token,
             base_namespace=new_namespace,
             verify=verify,
-            session=session
+            session=session,
+            suppress_404=suppress_404
         )
         all_namespaces.extend(child_namespaces)
 
