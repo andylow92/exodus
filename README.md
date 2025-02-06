@@ -187,43 +187,64 @@ if __name__ == "__main__":
 ```
 
 ## list namespaces 
+depth control works the following way:
+
+max_depth=1: Only direct children
+max_depth=2: Children and grandchildren
+max_depth=0: All levels (unlimited)
 ```python
+#!/usr/bin/env python3
 import os
 import logging
 from exodus.namespace import list_namespaces
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s'
-)
+# Set up logging
+logging.basicConfig(level=logging.INFO)
 
-# Get environment variables
-VAULT_ADDR = os.getenv("VAULT_ADDR", "http://localhost:8200")
-VAULT_TOKEN = os.getenv("VAULT_TOKEN")
-BASE_NAMESPACE = os.getenv("VAULT_NAMESPACE", "admin")  # Optional starting namespace
-
-def main():
-    if not VAULT_TOKEN:
+def test_namespace_depths():
+    # Get environment variables
+    vault_addr = os.getenv("VAULT_ADDR", "http://localhost:8200")
+    vault_token = os.getenv("VAULT_TOKEN")
+    base_namespace = os.getenv("VAULT_NAMESPACE", "admin")
+    max_depth = int(os.getenv("VAULT_MAX_DEPTH", "1"))
+    
+    if not vault_token:
         raise ValueError("VAULT_TOKEN environment variable must be set")
 
-    logging.info(f"Vault address: {VAULT_ADDR}")
-    logging.info(f"Base namespace: '{BASE_NAMESPACE}' (empty means root)")
+    print(f"Testing with:")
+    print(f"Base namespace: '{base_namespace}'")
+    print(f"Max depth: {max_depth}")
 
+    # Call the library function
     namespaces = list_namespaces(
-        vault_addr=VAULT_ADDR,
-        token=VAULT_TOKEN,
-        base_namespace=BASE_NAMESPACE,
-        suppress_404=True
+        vault_addr=vault_addr,
+        token=vault_token,
+        base_namespace=base_namespace,
+        max_depth=max_depth
     )
 
     print("\n=== Namespaces Found ===")
-    for ns in sorted(namespaces):
-        print(f" - {ns}")
+    if not namespaces:
+        print("No namespaces found.")
+    else:
+        for ns in sorted(namespaces):
+            depth = len(ns.split('/')) - 1
+            indent = "  " * depth
+            print(f"{indent}- {ns}")
 
 if __name__ == "__main__":
-    main()
+    test_namespace_depths()
   ```
+
+Remember to
+ ```bash
+# First set your environment variables if not already set
+export VAULT_ADDR="your-vault-address"
+export VAULT_TOKEN="your-token"
+export VAULT_NAMESPACE="admin"
+export VAULT_MAX_DEPTH=1
+
+ ```
 
 ## Best Practices
 
