@@ -82,6 +82,8 @@ exodus \
 
 ### Python Library Usage
 
+## kv secrets engine 
+
 ```python
 #!/usr/bin/env python3
 from exodus.kv_migrator import list_secrets, read_secret, write_secret
@@ -183,6 +185,45 @@ def main():
 if __name__ == "__main__":
    main()
 ```
+
+## list namespaces 
+```python
+import os
+import logging
+from exodus.namespace import list_namespaces
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s'
+)
+
+# Get environment variables
+VAULT_ADDR = os.getenv("VAULT_ADDR", "http://localhost:8200")
+VAULT_TOKEN = os.getenv("VAULT_TOKEN")
+BASE_NAMESPACE = os.getenv("VAULT_NAMESPACE", "admin")  # Optional starting namespace
+
+def main():
+    if not VAULT_TOKEN:
+        raise ValueError("VAULT_TOKEN environment variable must be set")
+
+    logging.info(f"Vault address: {VAULT_ADDR}")
+    logging.info(f"Base namespace: '{BASE_NAMESPACE}' (empty means root)")
+
+    namespaces = list_namespaces(
+        vault_addr=VAULT_ADDR,
+        token=VAULT_TOKEN,
+        base_namespace=BASE_NAMESPACE,
+        suppress_404=True
+    )
+
+    print("\n=== Namespaces Found ===")
+    for ns in sorted(namespaces):
+        print(f" - {ns}")
+
+if __name__ == "__main__":
+    main()
+  ```
 
 ## Best Practices
 
