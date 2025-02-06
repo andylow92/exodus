@@ -85,7 +85,6 @@ exodus \
 ## kv secrets engine 
 
 ```python
-#!/usr/bin/env python3
 from exodus.kv_migrator import list_secrets, read_secret, write_secret
 from tqdm import tqdm
 import time
@@ -193,7 +192,6 @@ max_depth=1: Only direct children
 max_depth=2: Children and grandchildren
 max_depth=0: All levels (unlimited)
 ```python
-#!/usr/bin/env python3
 import os
 import logging
 from exodus.namespace import list_namespaces
@@ -245,6 +243,123 @@ export VAULT_NAMESPACE="admin"
 export VAULT_MAX_DEPTH=1
 
  ```
+## list auth methods and secret engines  
+```python
+import os
+import logging
+from typing import Dict, Any
+from exodus.auth import list_auth_methods
+from exodus.secret import list_secret_engines
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s'
+)
+
+def test_vault_backends(
+    vault_addr: str,
+    token: str,
+    namespace: str = "",
+    verify: bool = True
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Test function to list both auth methods and secret engines.
+    
+    Args:
+        vault_addr: Vault server address
+        token: Vault token
+        namespace: Namespace to inspect
+        verify: SSL verification
+    """
+    results = {
+        'auth_methods': {},
+        'secret_engines': {}
+    }
+
+    try:
+        # List auth methods
+        auth_methods = list_auth_methods(
+            vault_addr=vault_addr,
+            token=token,
+            namespace=namespace,
+            verify=verify
+        )
+        results['auth_methods'] = auth_methods
+
+        # List secret engines
+        secret_engines = list_secret_engines(
+            vault_addr=vault_addr,
+            token=token,
+            namespace=namespace,
+            verify=verify
+        )
+        results['secret_engines'] = secret_engines
+
+    except Exception as e:
+        logging.error(f"Test failed: {str(e)}")
+
+    return results
+
+def main():
+    # Get environment variables
+    VAULT_ADDR = os.getenv("VAULT_ADDR", "http://localhost:8200")
+    VAULT_TOKEN = os.getenv("VAULT_TOKEN")
+    BASE_NAMESPACE = os.getenv("VAULT_NAMESPACE", "admin")
+    SKIP_VERIFY = os.getenv("VAULT_SKIP_VERIFY", "false").lower() == "true"
+
+    # Validate required environment variables
+    if not VAULT_TOKEN:
+        raise ValueError("VAULT_TOKEN environment variable must be set")
+
+    # Log configuration
+    logging.info(f"Vault address: {VAULT_ADDR}")
+    logging.info(f"Base namespace: '{BASE_NAMESPACE}' (empty means root)")
+    logging.info(f"SSL verification: {'disabled' if SKIP_VERIFY else 'enabled'}")
+
+    try:
+        results = test_vault_backends(
+            vault_addr=VAULT_ADDR,
+            token=VAULT_TOKEN,
+            namespace=BASE_NAMESPACE,
+            verify=not SKIP_VERIFY
+        )
+
+        # Print auth methods
+        print("\n=== Enabled Auth Methods ===")
+        if not results['auth_methods']:
+            print(" No auth methods found")
+        else:
+            for path, config in sorted(results['auth_methods'].items()):
+                print(f" - {path}: {config['type']}")
+                # Optionally print more details
+                if 'description' in config:
+                    print(f"   Description: {config['description']}")
+
+        # Print secret engines
+        print("\n=== Enabled Secret Engines ===")
+        if not results['secret_engines']:
+            print(" No secret engines found")
+        else:
+            for path, config in sorted(results['secret_engines'].items()):
+                print(f" - {path}: {config['type']}")
+                # Optionally print more details
+                if 'description' in config:
+                    print(f"   Description: {config['description']}")
+
+    except Exception as e:
+        logging.error(f"Failed to list backends: {str(e)}")
+        raise
+
+if __name__ == "__main__":
+    main()
+  ```
+```
+export VAULT_ADDR="https://vault.example.com:8200"
+export VAULT_TOKEN="your-token"
+export VAULT_NAMESPACE="admin"
+export VAULT_SKIP_VERIFY="true"  # Optional for testing
+  ```
 
 ## Best Practices
 
